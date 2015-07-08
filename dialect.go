@@ -418,3 +418,102 @@ func (d MySQLDialect) TruncateClause() string {
 func (d MySQLDialect) RestartIdentityClause(table string) string {
 	return "; alter table " + table + " AUTO_INCREMENT = 1"
 }
+
+// -- Vertica
+
+type VerticaDialect struct{}
+
+func (d VerticaDialect) DriverName() string {
+	return "vertica" // No native driver exists at this point, current jdbc is used through go-jdbc
+}
+
+// ToSqlType maps go types to vertica types.
+func (d VerticaDialect) ToSqlType(col *ColumnMap) string {
+
+	switch col.gotype.Kind() {
+	case reflect.Bool:
+		return "boolean"
+	case reflect.Int, reflect.Int16, reflect.Int32, reflect.Uint16, reflect.Uint32:
+		if col.isAutoIncr {
+			return "serial"
+		}
+		return "integer"
+	case reflect.Int64, reflect.Uint64:
+		return "int"
+	case reflect.Float64, reflect.Float32:
+		return "real"
+	case reflect.Slice:
+		if col.gotype.Elem().Kind() == reflect.Uint8 {
+			return "bytea"
+		}
+	}
+
+	switch col.gotype.Name() {
+	case "NullableInt64":
+		return "int"
+	case "NullableFloat64":
+		return "real"
+	case "NullableBool":
+		return "boolean"
+	case "NullableBytes":
+		return "bytea"
+	case "Time", "Nulltime":
+		return "timestamptz"
+	}
+
+	maxsize := col.MaxSize
+	if col.MaxSize < 1 {
+		maxsize = 255
+	}
+	return fmt.Sprintf("varchar(%d)", maxsize)
+}
+
+// AutoIncrStr returns empty string, as it's not used in vertica.
+func (d VerticaDialect) AutoIncrStr() string {
+	return ""
+}
+
+// TODO: Research this
+// AutoIncrBindValue returns 'default' for default auto incr bind values.
+func (d VerticaDialect) AutoIncrBindValue() string {
+	return "default"
+}
+
+// TODO: Research this
+func (d VerticaDialect) AutoIncrInsertSuffix(col *ColumnMap) string {
+	return ""
+	//return " returning " + col.ColumnName
+}
+
+// CreateTableSuffix returns the configured suffix.
+func (d VerticaDialect) CreateTableSuffix() string {
+	return ""
+}
+
+// BindVar returns "$(i+1)"
+func (d VerticaDialect) BindVar(i int) string {
+	return fmt.Sprintf("?")
+}
+
+func (d VerticaDialect) InsertAutoIncr(e SqlExecutor, insertSql string, params ...interface{}) (int64, error) {
+	return standardInsertAutoIncr(e, insertSql, params...)
+}
+
+func (d VerticaDialect) InsertAutoIncrAny(e SqlExecutor, insertSql string, dest interface{}, params ...interface{}) error {
+	return standardAutoIncrAny(e, insertSql, dest, params...)
+}
+
+// QuoteField quotes f with ""
+func (d VerticaDialect) QuoteField(f string) string {
+	return `"` + sqlx.NameMapper(f) + `"`
+}
+
+// TruncateClause returns 'truncate'
+func (d VerticaDialect) TruncateClause() string {
+	return "truncate table"
+}
+
+// TODO: Research this
+func (d VerticaDialect) RestartIdentityClause(table string) string {
+	return "restart identity"
+}

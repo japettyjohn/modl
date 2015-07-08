@@ -177,11 +177,20 @@ func writeColumnSql(sql *bytes.Buffer, col *ColumnMap) {
 		sqltype = col.table.dbmap.Dialect.ToSqlType(col)
 	}
 	sql.WriteString(fmt.Sprintf("%s %s", col.table.dbmap.Dialect.QuoteField(col.ColumnName), sqltype))
+
+	// Expand to support sql pkg nullables
+	nullable := col.gotype.Kind() == reflect.Ptr
+
 	if col.isPK {
 		sql.WriteString(" not null")
 		if len(col.table.Keys) == 1 {
 			sql.WriteString(" primary key")
 		}
+		if nullable {
+			log.Println("WARNING: PK Should never be nullable")
+		}
+	} else if !nullable {
+		sql.WriteString(" not null")
 	}
 	if col.Unique {
 		sql.WriteString(" unique")
