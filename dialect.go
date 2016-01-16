@@ -316,7 +316,11 @@ func (d MySQLDialect) DriverName() string {
 
 // ToSqlType maps go types to MySQL types.
 func (d MySQLDialect) ToSqlType(col *ColumnMap) string {
-	switch col.gotype.Kind() {
+	gotype := col.gotype
+	if col.gotype.Kind() == reflect.Ptr {
+		gotype = gotype.Elem()
+	}
+	switch gotype.Kind() {
 	case reflect.Bool:
 		return "boolean"
 	case reflect.Int, reflect.Int16, reflect.Int32, reflect.Uint16, reflect.Uint32:
@@ -326,19 +330,20 @@ func (d MySQLDialect) ToSqlType(col *ColumnMap) string {
 	case reflect.Float64, reflect.Float32:
 		return "double"
 	case reflect.Slice:
-		if col.gotype.Elem().Kind() == reflect.Uint8 {
+		if gotype.Elem().Kind() == reflect.Uint8 {
 			return "mediumblob"
 		}
 	}
 
-	switch col.gotype.Name() {
+	// TODO: Unusual use of NullTime (from pq driver)
+	switch gotype.Name() {
 	case "NullableInt64":
 		return "bigint"
 	case "NullableFloat64":
 		return "double"
 	case "NullableBool":
 		return "tinyint"
-	case "NullableBytes":
+	case "RawBytes":
 		return "mediumblob"
 	case "Time", "NullTime":
 		return "datetime"
@@ -429,8 +434,12 @@ func (d VerticaDialect) DriverName() string {
 
 // ToSqlType maps go types to vertica types.
 func (d VerticaDialect) ToSqlType(col *ColumnMap) string {
+	gotype := col.gotype
+	if col.gotype.Kind() == reflect.Ptr {
+		gotype = gotype.Elem()
+	}
 
-	switch col.gotype.Kind() {
+	switch gotype.Kind() {
 	case reflect.Bool:
 		return "boolean"
 	case reflect.Int, reflect.Int16, reflect.Int32, reflect.Uint16, reflect.Uint32:
@@ -443,21 +452,21 @@ func (d VerticaDialect) ToSqlType(col *ColumnMap) string {
 	case reflect.Float64, reflect.Float32:
 		return "real"
 	case reflect.Slice:
-		if col.gotype.Elem().Kind() == reflect.Uint8 {
+		if gotype.Elem().Kind() == reflect.Uint8 {
 			return "bytea"
 		}
 	}
 
-	switch col.gotype.Name() {
+	switch gotype.Name() {
 	case "NullableInt64":
 		return "int"
 	case "NullableFloat64":
 		return "real"
 	case "NullableBool":
 		return "boolean"
-	case "NullableBytes":
+	case "RawBytes":
 		return "bytea"
-	case "Time", "Nulltime":
+	case "Time", "NullTime":
 		return "timestamptz"
 	}
 
