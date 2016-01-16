@@ -167,36 +167,48 @@ func (m *DbMap) CreateTablesIfNotExists() error {
 	return err
 }
 
-func writeColumnSql(sql *bytes.Buffer, col *ColumnMap) {
+func writeColumnSql(sqlBuf *bytes.Buffer, col *ColumnMap) {
 	if len(col.createSql) > 0 {
-		sql.WriteString(col.createSql)
+		sqlBuf.WriteString(col.createSql)
 		return
 	}
 	sqltype := col.sqltype
 	if len(sqltype) == 0 {
 		sqltype = col.table.dbmap.Dialect.ToSqlType(col)
 	}
-	sql.WriteString(fmt.Sprintf("%s %s", col.table.dbmap.Dialect.QuoteField(col.ColumnName), sqltype))
+	sqlBuf.WriteString(fmt.Sprintf("%s %s", col.table.dbmap.Dialect.QuoteField(col.ColumnName), sqltype))
 
-	// Expand to support sql pkg nullables
-	nullable := col.gotype.Kind() == reflect.Ptr
+	// Check for a nullable type
+	nullable := col.Nullable
+	switch col.gotype.Kind() {
+	case reflect.Ptr, reflect.Slice, reflect.Array, reflect.Interface:
+		nullable = true
+	default:
+		// Need to get a ptr type for this
+		goPtrType := reflect.PtrTo(col.gotype)
+
+		// See if this implement scanner
+		if goPtrType.Implements(reflect.TypeOf((*sql.Scanner)(nil)).Elem()) {
+			nullable = true
+		}
+	}
 
 	if col.isPK {
-		sql.WriteString(" not null")
+		sqlBuf.WriteString(" not null")
 		if len(col.table.Keys) == 1 {
-			sql.WriteString(" primary key")
+			sqlBuf.WriteString(" primary key")
 		}
 		if nullable {
 			log.Println("WARNING: PK Should never be nullable")
 		}
 	} else if !nullable {
-		sql.WriteString(" not null")
+		sqlBuf.WriteString(" not null")
 	}
 	if col.Unique {
-		sql.WriteString(" unique")
+		sqlBuf.WriteString(" unique")
 	}
 	if col.isAutoIncr {
-		sql.WriteString(" " + col.table.dbmap.Dialect.AutoIncrStr())
+		sqlBuf.WriteString(" " + col.table.dbmap.Dialect.AutoIncrStr())
 	}
 }
 

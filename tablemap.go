@@ -302,6 +302,10 @@ type ColumnMap struct {
 	// If true, " unique" is added to create table statements.
 	Unique bool
 
+	// Used to make nullable columns for types that normally
+	// would be not nullable (e.g. pointers and sql.Scanner)
+	Nullable bool
+
 	// Passed to Dialect.ToSqlType() to assist in informing the
 	// correct column type to map to in CreateTables()
 	MaxSize int
@@ -328,6 +332,13 @@ func (c *ColumnMap) SetTransient(b bool) *ColumnMap {
 // will be added to create table statements for this column.
 func (c *ColumnMap) SetUnique(b bool) *ColumnMap {
 	c.Unique = b
+	return c
+}
+
+// SetNullable remove the not nullable clause for this column.  If true, the
+// not nullable will not be added to create table statements for this column.
+func (c *ColumnMap) SetNullable(b bool) *ColumnMap {
+	c.Nullable = b
 	return c
 }
 
