@@ -94,7 +94,7 @@ func (d SqliteDialect) DriverName() string {
 
 // ToSqlType maps go types to sqlite types.
 func (d SqliteDialect) ToSqlType(col *ColumnMap) string {
-	switch col.gotype.Kind() {
+	switch col.Gotype.Kind() {
 	case reflect.Bool:
 		return "integer"
 	case reflect.Int, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint16, reflect.Uint32, reflect.Uint64:
@@ -102,12 +102,12 @@ func (d SqliteDialect) ToSqlType(col *ColumnMap) string {
 	case reflect.Float64, reflect.Float32:
 		return "real"
 	case reflect.Slice:
-		if col.gotype.Elem().Kind() == reflect.Uint8 {
+		if col.Gotype.Elem().Kind() == reflect.Uint8 {
 			return "blob"
 		}
 	}
 
-	switch col.gotype.Name() {
+	switch col.Gotype.Name() {
 	case "NullableInt64":
 		return "integer"
 	case "NullableFloat64":
@@ -191,28 +191,28 @@ func (d PostgresDialect) DriverName() string {
 // ToSqlType maps go types to postgres types.
 func (d PostgresDialect) ToSqlType(col *ColumnMap) string {
 
-	switch col.gotype.Kind() {
+	switch col.Gotype.Kind() {
 	case reflect.Bool:
 		return "boolean"
 	case reflect.Int, reflect.Int16, reflect.Int32, reflect.Uint16, reflect.Uint32:
-		if col.isAutoIncr {
+		if col.IsAutoIncr {
 			return "serial"
 		}
 		return "integer"
 	case reflect.Int64, reflect.Uint64:
-		if col.isAutoIncr {
+		if col.IsAutoIncr {
 			return "bigserial"
 		}
 		return "bigint"
 	case reflect.Float64, reflect.Float32:
 		return "real"
 	case reflect.Slice:
-		if col.gotype.Elem().Kind() == reflect.Uint8 {
+		if col.Gotype.Elem().Kind() == reflect.Uint8 {
 			return "bytea"
 		}
 	}
 
-	switch col.gotype.Name() {
+	switch col.Gotype.Name() {
 	case "NullableInt64":
 		return "bigint"
 	case "NullableFloat64":
@@ -316,8 +316,8 @@ func (d MySQLDialect) DriverName() string {
 
 // ToSqlType maps go types to MySQL types.
 func (d MySQLDialect) ToSqlType(col *ColumnMap) string {
-	gotype := col.gotype
-	if col.gotype.Kind() == reflect.Ptr {
+	gotype := col.Gotype
+	if col.Gotype.Kind() == reflect.Ptr {
 		gotype = gotype.Elem()
 	}
 	switch gotype.Kind() {
@@ -422,107 +422,4 @@ func (d MySQLDialect) TruncateClause() string {
 // as MySQL doesn't have an identity clause for the truncate statement.
 func (d MySQLDialect) RestartIdentityClause(table string) string {
 	return "; alter table " + table + " AUTO_INCREMENT = 1"
-}
-
-// -- Vertica
-
-type VerticaDialect struct{}
-
-func (d VerticaDialect) DriverName() string {
-	return "vertica" // No native driver exists at this point, current jdbc is used through go-jdbc
-}
-
-// ToSqlType maps go types to vertica types.
-func (d VerticaDialect) ToSqlType(col *ColumnMap) string {
-	gotype := col.gotype
-	if col.gotype.Kind() == reflect.Ptr {
-		gotype = gotype.Elem()
-	}
-
-	switch gotype.Kind() {
-	case reflect.Bool:
-		return "boolean"
-	case reflect.Int, reflect.Int16, reflect.Int32, reflect.Uint16, reflect.Uint32:
-		if col.isAutoIncr {
-			return "serial"
-		}
-		return "integer"
-	case reflect.Int64, reflect.Uint64:
-		return "int"
-	case reflect.Float64, reflect.Float32:
-		return "real"
-	case reflect.Slice:
-		if gotype.Elem().Kind() == reflect.Uint8 {
-			return "bytea"
-		}
-	}
-
-	switch gotype.Name() {
-	case "NullableInt64":
-		return "int"
-	case "NullableFloat64":
-		return "real"
-	case "NullableBool":
-		return "boolean"
-	case "RawBytes":
-		return "bytea"
-	case "Time", "NullTime":
-		return "timestamptz"
-	}
-
-	maxsize := col.MaxSize
-	if col.MaxSize < 1 {
-		maxsize = 255
-	}
-	return fmt.Sprintf("varchar(%d)", maxsize)
-}
-
-// AutoIncrStr returns empty string, as it's not used in vertica.
-func (d VerticaDialect) AutoIncrStr() string {
-	return ""
-}
-
-// TODO: Research this
-// AutoIncrBindValue returns 'default' for default auto incr bind values.
-func (d VerticaDialect) AutoIncrBindValue() string {
-	return "default"
-}
-
-// TODO: Research this
-func (d VerticaDialect) AutoIncrInsertSuffix(col *ColumnMap) string {
-	return ""
-	//return " returning " + col.ColumnName
-}
-
-// CreateTableSuffix returns the configured suffix.
-func (d VerticaDialect) CreateTableSuffix() string {
-	return ""
-}
-
-// BindVar returns "$(i+1)"
-func (d VerticaDialect) BindVar(i int) string {
-	return fmt.Sprintf("?")
-}
-
-func (d VerticaDialect) InsertAutoIncr(e SqlExecutor, insertSql string, params ...interface{}) (int64, error) {
-	return standardInsertAutoIncr(e, insertSql, params...)
-}
-
-func (d VerticaDialect) InsertAutoIncrAny(e SqlExecutor, insertSql string, dest interface{}, params ...interface{}) error {
-	return standardAutoIncrAny(e, insertSql, dest, params...)
-}
-
-// QuoteField quotes f with ""
-func (d VerticaDialect) QuoteField(f string) string {
-	return `"` + sqlx.NameMapper(f) + `"`
-}
-
-// TruncateClause returns 'truncate'
-func (d VerticaDialect) TruncateClause() string {
-	return "truncate table"
-}
-
-// TODO: Research this
-func (d VerticaDialect) RestartIdentityClause(table string) string {
-	return "restart identity"
 }

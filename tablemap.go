@@ -56,7 +56,7 @@ func (t *TableMap) SetKeys(isAutoIncr bool, fieldNames ...string) *TableMap {
 		// own API which sets sqlx's mapping funcs as necessary
 		colmap := t.ColMap(sqlx.NameMapper(name))
 		colmap.isPK = true
-		colmap.isAutoIncr = isAutoIncr
+		colmap.IsAutoIncr = isAutoIncr
 		t.Keys = append(t.Keys, colmap)
 	}
 	t.ResetSql()
@@ -255,7 +255,7 @@ func (t *TableMap) bindInsert(elem reflect.Value) bindInstance {
 				}
 				s.WriteString(t.dbmap.Dialect.QuoteField(col.ColumnName))
 
-				if col.isAutoIncr {
+				if col.IsAutoIncr {
 					s2.WriteString(t.dbmap.Dialect.AutoIncrBindValue())
 					plan.autoIncrIdx = y
 				} else {
@@ -313,12 +313,16 @@ type ColumnMap struct {
 	// the table this column belongs to
 	table *TableMap
 
-	fieldName  string
-	gotype     reflect.Type
-	sqltype    string
-	createSql  string
-	isPK       bool
-	isAutoIncr bool
+	// The reflect.Type of this column
+	Gotype reflect.Type
+
+	// If true, column is auto incremented
+	IsAutoIncr bool
+
+	fieldName string
+	sqltype   string
+	createSql string
+	isPK      bool
 }
 
 // SetTransient allows you to mark the column as transient. If true

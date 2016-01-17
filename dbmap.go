@@ -124,7 +124,7 @@ func (m *DbMap) AddTable(i interface{}, name ...string) *TableMap {
 			ColumnName: columnName,
 			Transient:  columnName == "-",
 			fieldName:  f.Name,
-			gotype:     f.Type,
+			Gotype:     f.Type,
 			table:      tmap,
 		}
 		tmap.Columns = append(tmap.Columns, cm)
@@ -180,12 +180,12 @@ func writeColumnSql(sqlBuf *bytes.Buffer, col *ColumnMap) {
 
 	// Check for a nullable type
 	nullable := col.Nullable
-	switch col.gotype.Kind() {
+	switch col.Gotype.Kind() {
 	case reflect.Ptr, reflect.Slice, reflect.Array, reflect.Interface:
 		nullable = true
 	default:
 		// Need to get a ptr type for this
-		goPtrType := reflect.PtrTo(col.gotype)
+		goPtrType := reflect.PtrTo(col.Gotype)
 
 		// See if this implement scanner
 		if goPtrType.Implements(reflect.TypeOf((*sql.Scanner)(nil)).Elem()) {
@@ -207,7 +207,7 @@ func writeColumnSql(sqlBuf *bytes.Buffer, col *ColumnMap) {
 	if col.Unique {
 		sqlBuf.WriteString(" unique")
 	}
-	if col.isAutoIncr {
+	if col.IsAutoIncr {
 		sqlBuf.WriteString(" " + col.table.dbmap.Dialect.AutoIncrStr())
 	}
 }
