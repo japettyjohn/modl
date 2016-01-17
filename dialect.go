@@ -94,7 +94,12 @@ func (d SqliteDialect) DriverName() string {
 
 // ToSqlType maps go types to sqlite types.
 func (d SqliteDialect) ToSqlType(col *ColumnMap) string {
-	switch col.Gotype.Kind() {
+	gotype := col.Gotype
+	if col.Gotype.Kind() == reflect.Ptr {
+		gotype = gotype.Elem()
+	}
+
+	switch gotype.Kind() {
 	case reflect.Bool:
 		return "integer"
 	case reflect.Int, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint16, reflect.Uint32, reflect.Uint64:
@@ -102,7 +107,7 @@ func (d SqliteDialect) ToSqlType(col *ColumnMap) string {
 	case reflect.Float64, reflect.Float32:
 		return "real"
 	case reflect.Slice:
-		if col.Gotype.Elem().Kind() == reflect.Uint8 {
+		if gotype.Elem().Kind() == reflect.Uint8 {
 			return "blob"
 		}
 	}
@@ -114,7 +119,7 @@ func (d SqliteDialect) ToSqlType(col *ColumnMap) string {
 		return "real"
 	case "NullableBool":
 		return "integer"
-	case "NullableBytes":
+	case "RawBytes":
 		return "blob"
 	case "Time", "NullTime":
 		return "datetime"
@@ -190,8 +195,12 @@ func (d PostgresDialect) DriverName() string {
 
 // ToSqlType maps go types to postgres types.
 func (d PostgresDialect) ToSqlType(col *ColumnMap) string {
+	gotype := col.Gotype
+	if col.Gotype.Kind() == reflect.Ptr {
+		gotype = gotype.Elem()
+	}
 
-	switch col.Gotype.Kind() {
+	switch gotype.Kind() {
 	case reflect.Bool:
 		return "boolean"
 	case reflect.Int, reflect.Int16, reflect.Int32, reflect.Uint16, reflect.Uint32:
@@ -207,7 +216,7 @@ func (d PostgresDialect) ToSqlType(col *ColumnMap) string {
 	case reflect.Float64, reflect.Float32:
 		return "real"
 	case reflect.Slice:
-		if col.Gotype.Elem().Kind() == reflect.Uint8 {
+		if gotype.Elem().Kind() == reflect.Uint8 {
 			return "bytea"
 		}
 	}
@@ -219,9 +228,9 @@ func (d PostgresDialect) ToSqlType(col *ColumnMap) string {
 		return "double"
 	case "NullableBool":
 		return "smallint"
-	case "NullableBytes":
+	case "RawBytes":
 		return "bytea"
-	case "Time", "Nulltime":
+	case "Time", "NullTime":
 		return "timestamp with time zone"
 	}
 
